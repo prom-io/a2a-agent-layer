@@ -3,7 +3,14 @@ import {
   hashCanonicalRequest,
   sortKeysDeep,
 } from './request-canonicalization';
-import * as fixtures from './fixtures/canonical-hashes.json';
+import fixturesData from './fixtures/canonical-hashes.json';
+
+const fixtures = fixturesData as Array<{
+  label: string;
+  envelope: Parameters<typeof canonicalizeSignedRequest>[0];
+  canonical: string;
+  hash: string;
+}>;
 
 describe('request-canonicalization', () => {
   it('sorts nested object keys deterministically', () => {

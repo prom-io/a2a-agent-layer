@@ -13,6 +13,7 @@ describe('MeteringRollupJob', () => {
   const mockExecute = jest.fn().mockResolvedValue(undefined);
 
   beforeEach(async () => {
+    mockExecute.mockClear();
     const qbChain = {
       select: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),

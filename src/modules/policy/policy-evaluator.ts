@@ -54,6 +54,15 @@ export function evaluatePolicyAccess(
   rules: PolicyRuleset,
   ctx: PolicyEvaluationContext,
 ): { allowed: boolean; reason: string } {
+  const hasAccessConstraints =
+    (rules.accessRules?.length ?? 0) > 0 ||
+    (rules.allowlist?.length ?? 0) > 0 ||
+    (rules.denylist?.length ?? 0) > 0;
+
+  if (!hasAccessConstraints) {
+    return { allowed: true, reason: 'no access constraints' };
+  }
+
   if (rules.denylist?.some((pattern) => matchWildcard(pattern, ctx.subject))) {
     return { allowed: false, reason: 'subject on denylist' };
   }
