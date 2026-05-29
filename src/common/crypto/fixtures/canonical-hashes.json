@@ -1,0 +1,27 @@
+[
+  {
+    "label": "minimal-envelope",
+    "envelope": {
+      "agentFromId": "agent-a",
+      "agentToId": "agent-b",
+      "sessionId": "sess-001",
+      "requestPayload": { "prompt": "hello" },
+      "maxBudget": 1.0
+    },
+    "canonical": "{\"agentFromId\":\"agent-a\",\"agentToId\":\"agent-b\",\"sessionId\":\"sess-001\",\"requestPayload\":{\"prompt\":\"hello\"},\"maxBudget\":1}",
+    "hash": "cde27e22f6a9114bc2efea29ec1e212463184b99f944828dcaaa4025617e7bd6"
+  },
+  {
+    "label": "nested-key-order-independent",
+    "envelope": {
+      "agentFromId": "agent-x",
+      "agentToId": "agent-y",
+      "sessionId": "sess-002",
+      "requestPayload": { "z": 1, "a": { "nested": true, "id": 42 } },
+      "maxBudget": 0.5,
+      "nonce": "n-abc"
+    },
+    "canonical": "{\"agentFromId\":\"agent-x\",\"agentToId\":\"agent-y\",\"sessionId\":\"sess-002\",\"requestPayload\":{\"a\":{\"id\":42,\"nested\":true},\"z\":1},\"maxBudget\":0.5,\"nonce\":\"n-abc\"}",
+    "hash": "bcfed2d469250ffe2db950ca9701c23529b9af760baf2ca97e69549864aab2f1"
+  }
+]

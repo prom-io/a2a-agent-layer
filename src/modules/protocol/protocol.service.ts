@@ -3,6 +3,7 @@ import { A2aRequestDto } from './dto/a2a-request.dto';
 import { MeteringService } from '../metering/metering.service';
 import { IdentityService } from '../identity/identity.service';
 import { BlockchainService } from '../../common/blockchain/blockchain.service';
+import { hashCanonicalRequest } from '../../common/crypto/request-canonicalization';
 
 @Injectable()
 export class ProtocolService {
@@ -29,9 +30,15 @@ export class ProtocolService {
       signature: string;
     };
   }> {
-    const requestHash = this.blockchainService.hashData(
-      JSON.stringify(dto.requestPayload),
-    );
+    const requestHash = hashCanonicalRequest({
+      agentFromId: dto.agentFromId,
+      agentToId: dto.agentToId,
+      sessionId: dto.sessionId,
+      requestPayload: dto.requestPayload,
+      maxBudget: dto.maxBudget,
+      policyDigest: dto.policyDigest,
+      nonce: dto.nonce,
+    });
 
     if (dto.requestHash !== requestHash) {
       this.logger.warn(`Hash mismatch for session ${dto.sessionId}`);

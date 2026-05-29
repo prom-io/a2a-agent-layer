@@ -35,6 +35,11 @@ export class A2aRequestDto {
   @IsOptional()
   policyDigest?: string;
 
+  @ApiProperty({ required: false, description: 'Unique request nonce for replay protection' })
+  @IsString()
+  @IsOptional()
+  nonce?: string;
+
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
