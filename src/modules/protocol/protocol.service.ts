@@ -4,6 +4,7 @@ import { MeteringService } from '../metering/metering.service';
 import { IdentityService } from '../identity/identity.service';
 import { BlockchainService } from '../../common/blockchain/blockchain.service';
 import { hashCanonicalRequest } from '../../common/crypto/request-canonicalization';
+import { NonceStoreService } from './nonce-store.service';
 
 @Injectable()
 export class ProtocolService {
@@ -13,6 +14,7 @@ export class ProtocolService {
     private readonly meteringService: MeteringService,
     private readonly identityService: IdentityService,
     private readonly blockchainService: BlockchainService,
+    private readonly nonceStore: NonceStoreService,
   ) {}
 
   async handleRequest(dto: A2aRequestDto): Promise<{
@@ -42,6 +44,10 @@ export class ProtocolService {
 
     if (dto.requestHash !== requestHash) {
       this.logger.warn(`Hash mismatch for session ${dto.sessionId}`);
+    }
+
+    if (dto.nonce) {
+      this.nonceStore.assertFresh(dto.agentFromId, dto.nonce);
     }
 
     const startTime = Date.now();
