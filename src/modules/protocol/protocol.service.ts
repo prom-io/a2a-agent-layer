@@ -5,6 +5,7 @@ import { IdentityService } from '../identity/identity.service';
 import { BlockchainService } from '../../common/blockchain/blockchain.service';
 import { hashCanonicalRequest } from '../../common/crypto/request-canonicalization';
 import { NonceStoreService } from './nonce-store.service';
+import { PolicyEvaluatorService } from '../policy/policy-evaluator.service';
 
 @Injectable()
 export class ProtocolService {
@@ -15,6 +16,7 @@ export class ProtocolService {
     private readonly identityService: IdentityService,
     private readonly blockchainService: BlockchainService,
     private readonly nonceStore: NonceStoreService,
+    private readonly policyEvaluator: PolicyEvaluatorService,
   ) {}
 
   async handleRequest(dto: A2aRequestDto): Promise<{
@@ -49,6 +51,12 @@ export class ProtocolService {
     if (dto.nonce) {
       this.nonceStore.assertFresh(dto.agentFromId, dto.nonce);
     }
+
+    await this.policyEvaluator.assertAllowed(dto.agentToId, {
+      subject: dto.agentFromId,
+      action: 'invoke',
+      resource: dto.sessionId,
+    });
 
     const startTime = Date.now();
 

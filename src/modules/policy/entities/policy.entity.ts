@@ -24,6 +24,12 @@ export class Policy {
     denylist?: string[];
     requireVerification?: boolean;
     maxLatencyMs?: number;
+    accessRules?: Array<{
+      effect: 'allow' | 'deny';
+      subjects: string[];
+      actions?: string[];
+      resources?: string[];
+    }>;
   };
 
   @Column({ type: 'varchar', nullable: true })
