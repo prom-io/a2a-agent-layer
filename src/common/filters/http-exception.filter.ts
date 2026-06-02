@@ -14,6 +14,7 @@ interface ErrorResponseBody {
   message: string | string[];
   path: string;
   timestamp: string;
+  requestId?: string;
 }
 
 @Catch()
@@ -44,19 +45,25 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error = exception.name;
     }
 
+    const requestId =
+      (request as Request & { requestId?: string }).requestId ??
+      (request.headers['x-request-id'] as string | undefined);
+
     if (status >= 500) {
       this.logger.error(
-        `${request.method} ${request.url} ${status}`,
+        `[${requestId ?? '-'}] ${request.method} ${request.url} ${status}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     }
 
+    const isProd = process.env.NODE_ENV === 'production';
     const body: ErrorResponseBody = {
       statusCode: status,
       error,
-      message,
+      message: status >= 500 && isProd ? 'Internal server error' : message,
       path: request.url,
       timestamp: new Date().toISOString(),
+      ...(requestId ? { requestId } : {}),
     };
 
     response.status(status).json(body);
