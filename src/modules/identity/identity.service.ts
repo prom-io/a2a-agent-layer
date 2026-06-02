@@ -5,6 +5,9 @@ import { Repository } from 'typeorm';
 import { Agent, AgentStatus } from './entities/agent.entity';
 import { BlockchainService } from '../../common/blockchain/blockchain.service';
 import { AGENT_REGISTRY_ABI } from '../../common/blockchain/abis/agent-registry.abi';
+import { withRetry } from '../../common/blockchain/retry.util';
+import { RegisterAgentDto } from './dto/register-agent.dto';
+import { UpdateAgentDto } from './dto/update-agent.dto';
 
 @Injectable()
 export class IdentityService {
@@ -20,15 +23,21 @@ export class IdentityService {
     this.registryAddress = this.configService.get<string>('AGENT_REGISTRY_ADDRESS', '');
   }
 
-  async register(data: Partial<Agent>): Promise<Agent> {
+  async register(data: RegisterAgentDto): Promise<Agent> {
     const agent = this.agentRepo.create(data);
     const saved = await this.agentRepo.save(agent);
 
     if (this.registryAddress) {
       try {
         const contract = this.blockchainService.getContract(this.registryAddress, AGENT_REGISTRY_ABI);
-        const tx = await contract.registerAgent(saved.agentDid, saved.publicKey, saved.endpoint);
-        const receipt = await tx.wait();
+        const receipt = await withRetry(
+          async () => {
+            const tx = await contract.registerAgent(saved.agentDid, saved.publicKey, saved.endpoint);
+            return tx.wait();
+          },
+          {},
+          this.logger,
+        );
         this.logger.log(`Agent ${saved.agentDid} registered on-chain, tx: ${receipt.hash}`);
       } catch (error: any) {
         this.logger.error(`On-chain registration failed for ${saved.agentDid}: ${error.message}`);
@@ -54,7 +63,7 @@ export class IdentityService {
     return agent;
   }
 
-  async update(id: string, data: Partial<Agent>): Promise<Agent> {
+  async update(id: string, data: UpdateAgentDto): Promise<Agent> {
     const agent = await this.findOne(id);
     Object.assign(agent, data);
     const saved = await this.agentRepo.save(agent);
@@ -62,8 +71,14 @@ export class IdentityService {
     if (this.registryAddress && (data.publicKey || data.endpoint)) {
       try {
         const contract = this.blockchainService.getContract(this.registryAddress, AGENT_REGISTRY_ABI);
-        const tx = await contract.updateAgent(saved.agentDid, saved.publicKey, saved.endpoint);
-        await tx.wait();
+        await withRetry(
+          async () => {
+            const tx = await contract.updateAgent(saved.agentDid, saved.publicKey, saved.endpoint);
+            return tx.wait();
+          },
+          {},
+          this.logger,
+        );
         this.logger.log(`Agent ${saved.agentDid} updated on-chain`);
       } catch (error: any) {
         this.logger.error(`On-chain update failed: ${error.message}`);
@@ -81,8 +96,14 @@ export class IdentityService {
     if (this.registryAddress) {
       try {
         const contract = this.blockchainService.getContract(this.registryAddress, AGENT_REGISTRY_ABI);
-        const tx = await contract.deactivateAgent(saved.agentDid);
-        await tx.wait();
+        await withRetry(
+          async () => {
+            const tx = await contract.deactivateAgent(saved.agentDid);
+            return tx.wait();
+          },
+          {},
+          this.logger,
+        );
         this.logger.log(`Agent ${saved.agentDid} deactivated on-chain`);
       } catch (error: any) {
         this.logger.error(`On-chain deactivation failed: ${error.message}`);
