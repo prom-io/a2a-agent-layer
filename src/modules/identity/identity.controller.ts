@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { IdentityService } from './identity.service';
 import { Agent } from './entities/agent.entity';
+import { RegisterAgentDto } from './dto/register-agent.dto';
+import { UpdateAgentDto } from './dto/update-agent.dto';
 
 @ApiTags('agents')
 @Controller('agents')
@@ -13,7 +15,7 @@ export class IdentityController {
   @ApiResponse({ status: 201, description: 'Agent registered (and on-chain if AGENT_REGISTRY_ADDRESS set)' })
   @ApiResponse({ status: 400, description: 'Invalid agent payload' })
   @ApiResponse({ status: 409, description: 'Agent with this DID already exists' })
-  async register(@Body() body: Partial<Agent>): Promise<Agent> {
+  async register(@Body() body: RegisterAgentDto): Promise<Agent> {
     return this.identityService.register(body);
   }
 
@@ -29,7 +31,7 @@ export class IdentityController {
   @ApiParam({ name: 'id', description: 'Agent UUID' })
   @ApiResponse({ status: 200, description: 'Agent found' })
   @ApiResponse({ status: 404, description: 'Agent not found' })
-  async findOne(@Param('id') id: string): Promise<Agent> {
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<Agent> {
     return this.identityService.findOne(id);
   }
 
@@ -38,7 +40,10 @@ export class IdentityController {
   @ApiParam({ name: 'id', description: 'Agent UUID' })
   @ApiResponse({ status: 200, description: 'Agent updated' })
   @ApiResponse({ status: 404, description: 'Agent not found' })
-  async update(@Param('id') id: string, @Body() body: Partial<Agent>): Promise<Agent> {
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateAgentDto,
+  ): Promise<Agent> {
     return this.identityService.update(id, body);
   }
 
@@ -47,7 +52,7 @@ export class IdentityController {
   @ApiParam({ name: 'id', description: 'Agent UUID' })
   @ApiResponse({ status: 200, description: 'Agent deactivated' })
   @ApiResponse({ status: 404, description: 'Agent not found' })
-  async deactivate(@Param('id') id: string): Promise<Agent> {
+  async deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<Agent> {
     return this.identityService.deactivate(id);
   }
 }
