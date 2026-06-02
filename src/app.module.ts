@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AppMiddlewareModule } from './app.middleware.module';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { databaseConfig } from './config/database.config';
@@ -14,6 +15,7 @@ import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
+    AppMiddlewareModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [blockchainConfig],
