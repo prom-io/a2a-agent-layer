@@ -7,13 +7,13 @@ export const throttlerConfigFactory = (
   throttlers: [
     {
       name: 'short',
-      ttl: configService.get<number>('THROTTLE_SHORT_TTL', 1000),
-      limit: configService.get<number>('THROTTLE_SHORT_LIMIT', 10),
+      ttl: configService.get<number>('security.throttle.shortTtl', 1000),
+      limit: configService.get<number>('security.throttle.shortLimit', 10),
     },
     {
       name: 'long',
-      ttl: configService.get<number>('THROTTLE_LONG_TTL', 60000),
-      limit: configService.get<number>('THROTTLE_LONG_LIMIT', 100),
+      ttl: configService.get<number>('security.throttle.longTtl', 60000),
+      limit: configService.get<number>('security.throttle.longLimit', 100),
     },
   ],
 });
