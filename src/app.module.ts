@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AppMiddlewareModule } from './app.middleware.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { throttlerConfigFactory } from './config/throttler.config';
 import { AuthModule } from './common/auth/auth.module';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
@@ -25,6 +27,11 @@ import { HealthModule } from './modules/health/health.module';
       load: [blockchainConfig],
     }),
     TypeOrmModule.forRootAsync(databaseConfig),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: throttlerConfigFactory,
+    }),
     AuthModule,
     BlockchainModule,
     IdentityModule,
@@ -36,6 +43,10 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
   ],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
