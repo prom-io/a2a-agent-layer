@@ -15,6 +15,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
     if (isPublic) return true;
+
+    // ApiKeyGuard runs first and populates request.user for service callers.
+    // Those requests carry no bearer token, so passport would reject them.
+    const request = context.switchToHttp().getRequest<{ apiKeyAuth?: boolean }>();
+    if (request.apiKeyAuth) return true;
+
     return super.canActivate(context);
   }
 }
