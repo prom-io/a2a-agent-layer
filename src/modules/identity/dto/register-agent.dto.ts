@@ -21,6 +21,15 @@ export class RegisterAgentDto {
   @IsHttpUrl()
   endpoint!: string;
 
+  @ApiProperty({
+    description:
+      'Signature by `owner` over the canonical registration message, proving control of the DID',
+    example: '0x...',
+  })
+  @IsString()
+  @IsNotEmpty()
+  ownerSignature!: string;
+
   @ApiPropertyOptional({ enum: AgentStatus })
   @IsOptional()
   @IsEnum(AgentStatus)
