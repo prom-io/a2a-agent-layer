@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AppMiddlewareModule } from './app.middleware.module';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './common/auth/auth.module';
+import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { databaseConfig } from './config/database.config';
 import { blockchainConfig } from './config/blockchain.config';
 import { BlockchainModule } from './common/blockchain/blockchain.module';
@@ -21,6 +24,7 @@ import { HealthModule } from './modules/health/health.module';
       load: [blockchainConfig],
     }),
     TypeOrmModule.forRootAsync(databaseConfig),
+    AuthModule,
     BlockchainModule,
     IdentityModule,
     CatalogModule,
@@ -29,6 +33,12 @@ import { HealthModule } from './modules/health/health.module';
     ProtocolModule,
     PolicyModule,
     HealthModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
   ],
 })
 export class AppModule {}
