@@ -4,6 +4,8 @@ import { IdentityService } from './identity.service';
 import { Agent } from './entities/agent.entity';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { Role } from '../../common/auth/roles.enum';
 
 @ApiTags('agents')
 @Controller('agents')
@@ -11,7 +13,9 @@ export class IdentityController {
   constructor(private readonly identityService: IdentityService) {}
 
   @Post()
+  @Roles(Role.OPERATOR, Role.ADMIN)
   @ApiOperation({ summary: 'Register a new agent' })
+  @ApiResponse({ status: 403, description: 'Caller lacks the operator or admin role' })
   @ApiResponse({ status: 201, description: 'Agent registered (and on-chain if AGENT_REGISTRY_ADDRESS set)' })
   @ApiResponse({ status: 400, description: 'Invalid agent payload' })
   @ApiResponse({ status: 409, description: 'Agent with this DID already exists' })
@@ -36,7 +40,9 @@ export class IdentityController {
   }
 
   @Patch(':id')
+  @Roles(Role.OPERATOR, Role.ADMIN)
   @ApiOperation({ summary: 'Update an agent' })
+  @ApiResponse({ status: 403, description: 'Caller lacks the operator or admin role' })
   @ApiParam({ name: 'id', description: 'Agent UUID' })
   @ApiResponse({ status: 200, description: 'Agent updated' })
   @ApiResponse({ status: 404, description: 'Agent not found' })
@@ -48,7 +54,9 @@ export class IdentityController {
   }
 
   @Delete(':id')
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Deactivate an agent' })
+  @ApiResponse({ status: 403, description: 'Caller lacks the admin role' })
   @ApiParam({ name: 'id', description: 'Agent UUID' })
   @ApiResponse({ status: 200, description: 'Agent deactivated' })
   @ApiResponse({ status: 404, description: 'Agent not found' })
