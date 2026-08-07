@@ -6,6 +6,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { DatabaseErrorFilter } from './common/filters/database-error.filter';
 import { SanitizePipe } from './common/pipes/sanitize.pipe';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -24,7 +25,7 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  app.useGlobalInterceptors(new LoggingInterceptor(), new AuditInterceptor());
   app.useGlobalFilters(new AllExceptionsFilter(), new DatabaseErrorFilter());
 
   const config = new DocumentBuilder()
