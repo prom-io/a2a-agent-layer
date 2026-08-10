@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { throttlerConfigFactory } from './config/throttler.config';
+import securityConfig from './config/security.config';
 import { AuthModule } from './common/auth/auth.module';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
@@ -24,7 +25,7 @@ import { HealthModule } from './modules/health/health.module';
     AppMiddlewareModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [blockchainConfig],
+      load: [blockchainConfig, securityConfig],
     }),
     TypeOrmModule.forRootAsync(databaseConfig),
     ThrottlerModule.forRootAsync({
