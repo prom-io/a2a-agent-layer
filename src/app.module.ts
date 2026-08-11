@@ -8,6 +8,7 @@ import { throttlerConfigFactory } from './config/throttler.config';
 import securityConfig from './config/security.config';
 import { AuthModule } from './common/auth/auth.module';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
+import { ApiKeyGuard } from './common/auth/api-key.guard';
 import { RolesGuard } from './common/auth/roles.guard';
 import { databaseConfig } from './config/database.config';
 import { blockchainConfig } from './config/blockchain.config';
@@ -47,6 +48,10 @@ import { HealthModule } from './modules/health/health.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ApiKeyGuard,
     },
     {
       provide: APP_GUARD,
