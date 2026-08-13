@@ -7,6 +7,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { RolesGuard } from './roles.guard';
 import { ApiKeyService } from './api-key.service';
 import { ApiKeyGuard } from './api-key.guard';
+import { RefreshTokenService } from './refresh-token.service';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { ApiKeyGuard } from './api-key.guard';
       }),
     }),
   ],
-  providers: [JwtStrategy, JwtAuthGuard, RolesGuard, ApiKeyService, ApiKeyGuard],
-  exports: [JwtModule, PassportModule, JwtAuthGuard, RolesGuard, ApiKeyService, ApiKeyGuard],
+  providers: [JwtStrategy, JwtAuthGuard, RolesGuard, ApiKeyService, ApiKeyGuard, RefreshTokenService],
+  exports: [JwtModule, PassportModule, JwtAuthGuard, RolesGuard, ApiKeyService, ApiKeyGuard, RefreshTokenService],
 })
 export class AuthModule {}
