@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
@@ -8,6 +14,7 @@ import { AGENT_REGISTRY_ABI } from '../../common/blockchain/abis/agent-registry.
 import { withRetry } from '../../common/blockchain/retry.util';
 import { RegisterAgentDto } from './dto/register-agent.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
+import { verifyDidController } from './did-controller';
 
 @Injectable()
 export class IdentityService {
@@ -24,7 +31,39 @@ export class IdentityService {
   }
 
   async register(data: RegisterAgentDto): Promise<Agent> {
-    const agent = this.agentRepo.create(data);
+    const { ownerSignature, ...claim } = data;
+
+    // Verify before touching the database. Registering first and validating
+    // afterwards would leave an unverified agent in the catalog whenever the
+    // check failed.
+    const controls = verifyDidController(
+      {
+        agentDid: claim.agentDid,
+        owner: claim.owner,
+        publicKey: claim.publicKey,
+        endpoint: claim.endpoint,
+      },
+      ownerSignature,
+    );
+
+    if (!controls) {
+      this.logger.warn(
+        `Rejected registration of ${claim.agentDid}: signature does not prove control of ${claim.owner}`,
+      );
+      throw new ForbiddenException(
+        'ownerSignature does not prove control of the claimed owner address',
+      );
+    }
+
+    const existing = await this.agentRepo.findOneBy({ agentDid: claim.agentDid });
+    if (existing) {
+      throw new ConflictException(`Agent ${claim.agentDid} is already registered`);
+    }
+
+    const agent = this.agentRepo.create({
+      ...claim,
+      owner: claim.owner.toLowerCase(),
+    });
     const saved = await this.agentRepo.save(agent);
 
     if (this.registryAddress) {
