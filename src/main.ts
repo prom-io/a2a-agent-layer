@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { PinoLoggerService } from './common/logging/pino-logger.service';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { DatabaseErrorFilter } from './common/filters/database-error.filter';
@@ -10,7 +11,10 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  // Buffer until the pino logger is attached so startup lines are structured
+  // too instead of going out through the default console logger.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(PinoLoggerService));
 
   app.enableShutdownHooks();
 

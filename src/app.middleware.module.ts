@@ -6,8 +6,10 @@ import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 @Module({})
 export class AppMiddlewareModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
+    // RequestIdMiddleware first: it opens the async context that every later
+    // log line reads the correlation id from.
     consumer
-      .apply(SecurityHeadersMiddleware, RequestIdMiddleware, CsrfMiddleware)
+      .apply(RequestIdMiddleware, SecurityHeadersMiddleware, CsrfMiddleware)
       .forRoutes('*');
   }
 }
