@@ -91,6 +91,7 @@ docker compose up --build -d
 | Graceful shutdown | `src/main.ts` | `enableShutdownHooks()` for clean SIGTERM handling |
 | HTTP logging | `src/common/interceptors/logging.interceptor.ts` | Logs method, URL, status, duration, IP, user-agent |
 | Structured logs | `src/common/logging/pino-logger.service.ts` | One JSON line per event (pino) with the `x-request-id` correlation id |
+| Tracing | `src/observability/tracing.ts` | OpenTelemetry SDK with OTLP/HTTP exporter, enabled by `OTEL_EXPORTER_OTLP_ENDPOINT` |
 | Metrics | `src/observability/metrics.module.ts` | Prometheus scrape target at `GET /metrics` (process, runtime and HTTP series) |
 | Unified errors | `src/common/filters/http-exception.filter.ts` | Consistent `{ statusCode, error, message, path, timestamp }` |
 | Validation | `src/main.ts` | Global `ValidationPipe` with whitelist and transform |

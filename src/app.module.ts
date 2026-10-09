@@ -8,6 +8,7 @@ import { throttlerConfigFactory } from './config/throttler.config';
 import securityConfig from './config/security.config';
 import { LoggingModule } from './common/logging/logging.module';
 import { MetricsModule } from './observability/metrics.module';
+import { TracingModule } from './observability/tracing.module';
 import { AuthModule } from './common/auth/auth.module';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { ApiKeyGuard } from './common/auth/api-key.guard';
@@ -38,6 +39,7 @@ import { HealthModule } from './modules/health/health.module';
     }),
     LoggingModule,
     MetricsModule,
+    TracingModule,
     AuthModule,
     BlockchainModule,
     IdentityModule,

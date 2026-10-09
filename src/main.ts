@@ -1,3 +1,6 @@
+// Must stay the first import: it registers the OpenTelemetry instrumentations
+// before http, express and pg are loaded by anything below.
+import './observability/tracing.bootstrap';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
