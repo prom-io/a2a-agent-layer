@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { collectDefaultMetrics, Counter, Gauge, Histogram, Registry } from 'prom-client';
 
 export const METRICS_PREFIX = 'agent_layer_';
@@ -14,6 +14,9 @@ const KNOWN_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 
  */
 @Injectable()
 export class MetricsService implements OnModuleDestroy {
+  private readonly logger = new Logger(MetricsService.name);
+  private readonly collectors: Array<() => Promise<void>> = [];
+
   readonly registry = new Registry();
 
   readonly httpRequests = new Counter({
@@ -49,7 +52,26 @@ export class MetricsService implements OnModuleDestroy {
     return this.registry.contentType;
   }
 
+  /**
+   * Registers a hook that runs before every scrape, for gauges whose value is
+   * read from somewhere else (the database) rather than pushed by the code.
+   */
+  registerCollector(collector: () => Promise<void>): void {
+    this.collectors.push(collector);
+  }
+
   async scrape(): Promise<string> {
+    // A failing collector must not take the whole scrape down with it: the
+    // process and HTTP series matter most exactly when a dependency is broken.
+    await Promise.all(
+      this.collectors.map((collect) =>
+        collect().catch((error: unknown) =>
+          this.logger.warn(
+            `Metrics collector failed: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        ),
+      ),
+    );
     return this.registry.metrics();
   }
 
