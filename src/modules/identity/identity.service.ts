@@ -69,13 +69,18 @@ export class IdentityService {
     if (this.registryAddress) {
       try {
         const contract = this.blockchainService.getContract(this.registryAddress, AGENT_REGISTRY_ABI);
-        const receipt = await withRetry(
-          async () => {
-            const tx = await contract.registerAgent(saved.agentDid, saved.publicKey, saved.endpoint);
-            return tx.wait();
-          },
-          {},
-          this.logger,
+        const receipt = await this.blockchainService.traced(
+          'AgentRegistry.registerAgent',
+          { 'agent.did': saved.agentDid, 'blockchain.contract': this.registryAddress },
+          () =>
+            withRetry(
+              async () => {
+                const tx = await contract.registerAgent(saved.agentDid, saved.publicKey, saved.endpoint);
+                return tx.wait();
+              },
+              {},
+              this.logger,
+            ),
         );
         this.logger.log(`Agent ${saved.agentDid} registered on-chain, tx: ${receipt.hash}`);
       } catch (error: any) {
@@ -110,13 +115,18 @@ export class IdentityService {
     if (this.registryAddress && (data.publicKey || data.endpoint)) {
       try {
         const contract = this.blockchainService.getContract(this.registryAddress, AGENT_REGISTRY_ABI);
-        await withRetry(
-          async () => {
-            const tx = await contract.updateAgent(saved.agentDid, saved.publicKey, saved.endpoint);
-            return tx.wait();
-          },
-          {},
-          this.logger,
+        await this.blockchainService.traced(
+          'AgentRegistry.updateAgent',
+          { 'agent.did': saved.agentDid, 'blockchain.contract': this.registryAddress },
+          () =>
+            withRetry(
+              async () => {
+                const tx = await contract.updateAgent(saved.agentDid, saved.publicKey, saved.endpoint);
+                return tx.wait();
+              },
+              {},
+              this.logger,
+            ),
         );
         this.logger.log(`Agent ${saved.agentDid} updated on-chain`);
       } catch (error: any) {
@@ -135,13 +145,18 @@ export class IdentityService {
     if (this.registryAddress) {
       try {
         const contract = this.blockchainService.getContract(this.registryAddress, AGENT_REGISTRY_ABI);
-        await withRetry(
-          async () => {
-            const tx = await contract.deactivateAgent(saved.agentDid);
-            return tx.wait();
-          },
-          {},
-          this.logger,
+        await this.blockchainService.traced(
+          'AgentRegistry.deactivateAgent',
+          { 'agent.did': saved.agentDid, 'blockchain.contract': this.registryAddress },
+          () =>
+            withRetry(
+              async () => {
+                const tx = await contract.deactivateAgent(saved.agentDid);
+                return tx.wait();
+              },
+              {},
+              this.logger,
+            ),
         );
         this.logger.log(`Agent ${saved.agentDid} deactivated on-chain`);
       } catch (error: any) {

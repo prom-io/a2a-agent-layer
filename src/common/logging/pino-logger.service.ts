@@ -1,6 +1,7 @@
 import { Inject, Injectable, LoggerService, LogLevel, Optional } from '@nestjs/common';
 import pino, { DestinationStream, Logger as PinoLogger, LoggerOptions } from 'pino';
 import { requestContext } from './request-context';
+import { activeTraceIds } from '../../observability/traced-blockchain';
 
 export const PINO_DESTINATION = 'PINO_DESTINATION';
 
@@ -134,6 +135,9 @@ export class PinoLoggerService implements LoggerService {
     const payload: Record<string, unknown> = {
       context,
       requestId: requestContext.requestId(),
+      // Present only while a span is active, i.e. when tracing is enabled;
+      // lets a log line be looked up as a trace and the other way round.
+      ...activeTraceIds(),
       ...extra,
     };
 
