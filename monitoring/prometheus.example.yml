@@ -1,0 +1,53 @@
+# Example Prometheus configuration for scraping the PROM Agent Layer.
+#
+# Copy to prometheus.yml and adjust the targets. The service exposes its
+# metrics at GET /metrics on the same port as the API (3001), unauthenticated
+# and exempt from rate limiting, so the endpoint must only be reachable from
+# the monitoring network: do not publish it through the public ingress.
+#
+#   docker run --rm -p 9090:9090 \
+#     -v "$PWD/monitoring/prometheus.example.yml:/etc/prometheus/prometheus.yml:ro" \
+#     prom/prometheus:v2.53.0
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 30s
+  external_labels:
+    project: prom
+    env: testnet
+
+scrape_configs:
+  - job_name: a2a-agent-layer
+    metrics_path: /metrics
+    scheme: http
+    # The domain gauges (agents, services, usage) are read from the database
+    # and cached for DOMAIN_METRICS_TTL_MS (15s by default), so scraping more
+    # often than that only re-reads cached values.
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - agent-layer:3001
+        labels:
+          component: agent-layer
+
+    # Alternative for Docker Compose / Swarm with several replicas behind one
+    # DNS name: resolve every A record instead of listing targets by hand.
+    # dns_sd_configs:
+    #   - names: ['tasks.agent-layer']
+    #     type: A
+    #     port: 3001
+
+    metric_relabel_configs:
+      # Every series already carries service="a2a-agent-layer" (set by the
+      # service itself). Garbage-collection buckets are the one high-volume
+      # family nobody charts; drop them at ingestion.
+      - source_labels: [__name__]
+        regex: agent_layer_nodejs_gc_duration_seconds_bucket
+        action: drop
+
+  # Prometheus scraping itself, so a broken scrape pipeline is visible too.
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
