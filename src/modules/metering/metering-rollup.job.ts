@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsageRecord } from './entities/usage-record.entity';
 import { UsageRollup } from './entities/usage-rollup.entity';
+import { BusinessMetricsService } from '../../observability/business-metrics.service';
 
 function truncateToHour(date: Date): Date {
   const bucket = new Date(date);
@@ -20,6 +21,7 @@ export class MeteringRollupJob implements OnModuleInit, OnModuleDestroy {
     private readonly usageRepo: Repository<UsageRecord>,
     @InjectRepository(UsageRollup)
     private readonly rollupRepo: Repository<UsageRollup>,
+    private readonly businessMetrics: BusinessMetricsService,
   ) {}
 
   onModuleInit(): void {
@@ -42,6 +44,19 @@ export class MeteringRollupJob implements OnModuleInit, OnModuleDestroy {
    * Aggregate usage_records into hourly rollups with ON CONFLICT upsert semantics.
    */
   async runHourlyRollup(referenceDate: Date = new Date()): Promise<number> {
+    try {
+      const buckets = await this.rollup(referenceDate);
+      this.businessMetrics.recordRollupRun('success', buckets);
+      return buckets;
+    } catch (error) {
+      // Counted here rather than in the interval callback so manual and test
+      // invocations are visible to the MeteringRollupFailing alert as well.
+      this.businessMetrics.recordRollupRun('failure');
+      throw error;
+    }
+  }
+
+  private async rollup(referenceDate: Date): Promise<number> {
     const hourBucket = truncateToHour(referenceDate);
     const hourEnd = new Date(hourBucket.getTime() + 3_600_000);
 

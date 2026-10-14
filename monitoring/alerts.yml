@@ -1,0 +1,123 @@
+# Alert rules for the PROM Agent Layer.
+#
+# Loaded by Prometheus through `rule_files` (see prometheus.example.yml).
+# Every metric referenced here is exposed by the service itself at /metrics;
+# src/observability/alert-rules.spec.ts fails the build if a rule refers to a
+# series the service does not register.
+#
+# Severity: `critical` pages, `warning` goes to the team channel.
+
+groups:
+  - name: agent-layer-availability
+    rules:
+      - alert: AgentLayerDown
+        expr: up{job="a2a-agent-layer"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Agent Layer instance {{ $labels.instance }} is not being scraped
+          description: >-
+            Prometheus has not been able to scrape /metrics for 2 minutes. The
+            metering and policy alerts below are blind while this fires.
+          runbook: docs/OBSERVABILITY.md#agentlayerdown
+
+      - alert: AgentLayerDomainMetricsStale
+        expr: increase(agent_layer_domain_metrics_refresh_errors_total[10m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Agent Layer cannot refresh its domain gauges from the database
+          description: >-
+            The agents, services, usage and metering-lag gauges are served from
+            their last good values. Treat MeteringLag* as unknown until this clears.
+          runbook: docs/OBSERVABILITY.md#agentlayerdomainmetricsstale
+
+  - name: agent-layer-metering
+    rules:
+      # The rollup job runs hourly, so usage is normally at most ~1h behind.
+      - alert: MeteringLagHigh
+        expr: max(agent_layer_metering_lag_seconds) > 7200
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Usage metering is {{ $value | humanizeDuration }} behind
+          description: >-
+            The oldest usage record without an hourly rollup is more than 2 hours
+            old. At least one rollup run was missed or failed.
+          runbook: docs/OBSERVABILITY.md#meteringlaghigh
+
+      - alert: MeteringLagCritical
+        expr: max(agent_layer_metering_lag_seconds) > 21600
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Usage metering is {{ $value | humanizeDuration }} behind
+          description: >-
+            Rollups are more than 6 hours behind. Billing reads the rollups, so
+            usage from this window is not being charged.
+          runbook: docs/OBSERVABILITY.md#meteringlaghigh
+
+      - alert: MeteringRollupFailing
+        expr: increase(agent_layer_metering_rollup_runs_total{result="failure"}[3h]) >= 2
+        labels:
+          severity: warning
+        annotations:
+          summary: Metering rollup job failed {{ $value | humanize }} times in 3 hours
+          description: >-
+            Consecutive rollup runs are failing. Lag will start to grow; check the
+            MeteringRollupJob error logs for the database error.
+          runbook: docs/OBSERVABILITY.md#meteringrollupfailing
+
+      - alert: MeteringRollupStalled
+        expr: time() - max(agent_layer_metering_rollup_last_success_timestamp_seconds) > 9000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: No successful metering rollup for {{ $value | humanizeDuration }}
+          description: >-
+            The hourly rollup has not completed for over 2.5 hours although the
+            service is up. The interval timer may not be running
+            (METERING_ROLLUP_INTERVAL_MS) or every run is failing.
+          runbook: docs/OBSERVABILITY.md#meteringrollupfailing
+
+  - name: agent-layer-policy
+    rules:
+      # A ratio alone fires on one denied request at 3 a.m.; require some
+      # volume as well.
+      - alert: PolicyDenialRateHigh
+        expr: |
+          (
+            sum(rate(agent_layer_policy_decisions_total{decision="deny"}[10m]))
+              /
+            sum(rate(agent_layer_policy_decisions_total[10m]))
+          ) > 0.2
+          and
+          sum(rate(agent_layer_policy_decisions_total[10m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ $value | humanizePercentage }} of A2A requests are denied by policy'
+          description: >-
+            More than a fifth of policy evaluations end in a denial. Usually a
+            policy rollout that is stricter than intended, or a caller that lost
+            its allowlist entry.
+          runbook: docs/OBSERVABILITY.md#policydenialratehigh
+
+      - alert: PolicyDenialSpike
+        expr: sum by (reason) (increase(agent_layer_policy_decisions_total{decision="deny"}[5m])) > 50
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Policy denial spike: {{ $value | humanize }} denials in 5m ({{ $labels.reason }})'
+          description: >-
+            A burst of denials with the same reason. `subject_on_denylist` at this
+            rate usually means a blocked agent is retrying in a loop;
+            `no_matching_allow_rule` points at a broken policy.
+          runbook: docs/OBSERVABILITY.md#policydenialratehigh

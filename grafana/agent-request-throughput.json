@@ -936,6 +936,108 @@
     },
     {
       "id": 21,
+      "type": "timeseries",
+      "title": "Policy decisions",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum by (decision, reason) (rate(agent_layer_policy_decisions_total{service=\"a2a-agent-layer\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{decision}} / {{reason}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "description": "One decision per A2A request. Alerts: PolicyDenialRateHigh, PolicyDenialSpike",
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Metering rollup runs",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum by (result) (increase(agent_layer_metering_rollup_runs_total{service=\"a2a-agent-layer\"}[1h]))",
+          "refId": "A",
+          "legendFormat": "{{result}} / h"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "time() - max(agent_layer_metering_rollup_last_success_timestamp_seconds{service=\"a2a-agent-layer\"})",
+          "refId": "B",
+          "legendFormat": "seconds since last success"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 23,
       "type": "row",
       "title": "Runtime",
       "collapsed": false,
@@ -943,12 +1045,12 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 51
       },
       "panels": []
     },
     {
-      "id": 22,
+      "id": 24,
       "type": "timeseries",
       "title": "Event loop lag p99",
       "datasource": {
@@ -959,7 +1061,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 45
+        "y": 52
       },
       "targets": [
         {
@@ -994,7 +1096,7 @@
       }
     },
     {
-      "id": 23,
+      "id": 25,
       "type": "timeseries",
       "title": "Memory",
       "datasource": {
@@ -1005,7 +1107,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 45
+        "y": 52
       },
       "targets": [
         {
@@ -1049,7 +1151,7 @@
       }
     },
     {
-      "id": 24,
+      "id": 26,
       "type": "timeseries",
       "title": "CPU",
       "datasource": {
@@ -1060,7 +1162,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 45
+        "y": 52
       },
       "targets": [
         {
