@@ -21,6 +21,8 @@ import { Counter, Rate, Trend } from 'k6/metrics';
 const BASE_URL = (__ENV.BASE_URL || 'http://localhost:3001').replace(/\/+$/, '');
 const PROFILE = __ENV.PROFILE || 'load';
 const AGENT_TO = __ENV.AGENT_TO || 'did:prom:k6-target';
+// An empty term lists the whole catalog; the others exercise the ILIKE search.
+const SEARCH_TERMS = ['', 'translate', 'summar', 'image', 'code', 'search'];
 
 const PROFILES = {
   // Sanity run for CI or after a deploy: a few iterations, same thresholds.
@@ -152,12 +154,20 @@ export function setup() {
 
 export function catalogSearch(data) {
   group('catalog search', () => {
+    // One round trip returns the page and its prices: include=tariffs loads
+    // the tariffs of all listed services with a single batched query.
+    const term = SEARCH_TERMS[(__VU + __ITER) % SEARCH_TERMS.length];
     const list = track(
-      http.get(`${BASE_URL}/services`, { headers: headers(), tags: { endpoint: 'GET /services' } }),
+      http.get(`${BASE_URL}/services?include=tariffs&limit=50&q=${encodeURIComponent(term)}`, {
+        headers: headers(),
+        tags: { endpoint: 'GET /services' },
+      }),
     );
     const ok = check(list, {
       'services: status 200': (r) => r.status === 200,
       'services: returns a list': (r) => r.status === 200 && Array.isArray(r.json()),
+      'services: tariffs embedded': (r) =>
+        r.status === 200 && r.json().every((s) => Array.isArray(s.tariffs)),
     });
     if (ok) catalogSize.add(list.json().length);
 
@@ -171,12 +181,15 @@ export function catalogSearch(data) {
         }),
       );
       check(detail, { 'service detail: status 200': (r) => r.status === 200 });
-    }
 
-    const tariffs = track(
-      http.get(`${BASE_URL}/tariffs`, { headers: headers(), tags: { endpoint: 'GET /tariffs' } }),
-    );
-    check(tariffs, { 'tariffs: status 200': (r) => r.status === 200 });
+      const tariffs = track(
+        http.get(`${BASE_URL}/tariffs?serviceId=${id}`, {
+          headers: headers(),
+          tags: { endpoint: 'GET /tariffs' },
+        }),
+      );
+      check(tariffs, { 'tariffs: status 200': (r) => r.status === 200 });
+    }
   });
 }
 

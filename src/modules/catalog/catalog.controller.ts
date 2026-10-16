@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { CatalogService } from './catalog.service';
+import { CatalogService, ServiceWithTariffs } from './catalog.service';
+import { ListServicesDto } from './dto/list-services.dto';
 import { Service } from './entities/service.entity';
 
 @ApiTags('services')
@@ -17,10 +18,11 @@ export class CatalogController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all services' })
+  @ApiOperation({ summary: 'List or search services, optionally with their tariffs' })
   @ApiResponse({ status: 200, description: 'List of services' })
-  async findAll(): Promise<Service[]> {
-    return this.catalogService.findAll();
+  @ApiResponse({ status: 400, description: 'Invalid filter or pagination parameter' })
+  async findAll(@Query() query: ListServicesDto): Promise<Service[] | ServiceWithTariffs[]> {
+    return this.catalogService.findAll(query);
   }
 
   @Get(':id')

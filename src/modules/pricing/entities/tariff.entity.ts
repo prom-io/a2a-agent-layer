@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 
 export enum TariffType {
@@ -13,6 +14,9 @@ export enum TariffType {
 }
 
 @Entity('tariffs')
+// Matches the index created by the InitSchema migration; declared here so a
+// synchronized development schema serves the batched lookup from an index too.
+@Index('IDX_tariffs_service', ['serviceId'])
 export class Tariff {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

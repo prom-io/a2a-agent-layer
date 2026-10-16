@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Param, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Body, Query, ParseUUIDPipe } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { PricingService } from './pricing.service';
 import { Tariff } from './entities/tariff.entity';
 
@@ -17,10 +17,13 @@ export class PricingController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all tariffs' })
+  @ApiOperation({ summary: 'List tariffs, optionally for a single service' })
+  @ApiQuery({ name: 'serviceId', required: false, description: 'Only tariffs of this service (UUID)' })
   @ApiResponse({ status: 200, description: 'List of tariffs' })
-  async findAll(): Promise<Tariff[]> {
-    return this.pricingService.findAll();
+  async findAll(
+    @Query('serviceId', new ParseUUIDPipe({ optional: true })) serviceId?: string,
+  ): Promise<Tariff[]> {
+    return this.pricingService.findAll({ serviceId });
   }
 
   @Get(':id')
