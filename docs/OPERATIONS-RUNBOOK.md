@@ -115,6 +115,8 @@ Table: `usage_rollups` — unique on `(agentId, hourBucket)`.
 curl -s http://localhost:3000/health | jq
 ```
 
+Per-dependency latencies (`GET /health/detail`), metrics, alerts and their runbook: see [OBSERVABILITY.md](OBSERVABILITY.md).
+
 ## Related tests
 
 ```bash

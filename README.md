@@ -39,6 +39,8 @@ npm run start:prod   # from compiled dist/
 
 API documentation is available at `http://localhost:3001/api` (Swagger UI).
 
+Logs, metrics (`GET /metrics`), tracing, the Grafana dashboard and the alert runbook are described in [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
+
 ### Test
 
 ```bash
