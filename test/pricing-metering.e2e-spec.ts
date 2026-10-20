@@ -10,6 +10,10 @@ describe('pricing and metering (e2e, testnet)', () => {
   });
 
   it('rejects negative usage', () => {
-    expect(() => { if (-1 < 0) throw new Error('usage must be non-negative'); }).toThrow();
+    const meter = (units: number) => {
+      if (units < 0) throw new Error('usage must be non-negative');
+      return price(units, 10n);
+    };
+    expect(() => meter(-1)).toThrow('usage must be non-negative');
   });
 });

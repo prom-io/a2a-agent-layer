@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { MeteringRollupJob } from '../src/modules/metering/metering-rollup.job';
 import { hashCanonicalRequest } from '../src/common/crypto/request-canonicalization';
@@ -10,7 +10,7 @@ describe('Agent Layer (e2e)', () => {
   let rollupJob: MeteringRollupJob;
 
   const buildA2aBody = (overrides: Record<string, unknown> = {}) => {
-    const base = {
+    const base: Record<string, unknown> = {
       agentFromId: 'did:prom:e2e-caller',
       agentToId: 'did:prom:e2e-target',
       sessionId: 'e2e-session-001',
