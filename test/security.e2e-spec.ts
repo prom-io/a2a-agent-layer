@@ -32,7 +32,10 @@ describe('Security (e2e)', () => {
       new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
     jwt = app.get(JwtService);
-    await app.init();
+    // listen(0) binds once on a random port. With init() alone the server is
+    // not listening, and the 25 parallel requests of the rate-limit tests each
+    // try to bring it up, which ends in ECONNRESET.
+    await app.listen(0);
   });
 
   afterAll(async () => {

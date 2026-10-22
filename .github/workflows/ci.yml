@@ -75,3 +75,57 @@ jobs:
 
       - name: Unit tests
         run: npm test -- --ci --runInBand
+
+  e2e:
+    name: e2e tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agent_db
+        ports:
+          - 5432:5432
+        # Without the health check the job races the container and fails on a
+        # cold runner.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # test, not development: the schema must come from the migrations, the
+      # way it does in production, instead of from TypeORM synchronize.
+      NODE_ENV: test
+      DATABASE_HOST: localhost
+      DATABASE_PORT: '5432'
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: agent_db
+      JWT_SECRET: ci-secret-not-used-outside-ci
+      CSRF_SECRET: ci-csrf-not-used-outside-ci
+      # The well-known first Anvil account, also the default in .env.example.
+      # The suite only signs receipts with it; no RPC node is contacted.
+      BLOCKCHAIN_PRIVATE_KEY: '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+      BLOCKCHAIN_RPC_URL: http://localhost:8545
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      # The migration runner loads the compiled data source from dist/.
+      - name: Build
+        run: npm run build
+
+      - name: Run migrations
+        run: npm run migration:run
+
+      - name: E2E
+        run: npm run test:e2e -- --ci --runInBand

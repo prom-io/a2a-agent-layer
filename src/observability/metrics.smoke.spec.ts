@@ -106,7 +106,9 @@ describe('metrics smoke', () => {
     const scrape = await request(server).get('/metrics').expect(200);
     body = scrape.text;
     contentType = scrape.headers['content-type'];
-  });
+    // Boots a Nest application and makes real HTTP requests; the default 5s
+    // hook timeout is too tight on a busy CI runner.
+  }, 60_000);
 
   afterAll(async () => {
     await app.close();

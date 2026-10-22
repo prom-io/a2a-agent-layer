@@ -1,11 +1,11 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
 import { Attributes, Span } from '@opentelemetry/api';
 import { traceContextHeaders, tracedCall } from '../../observability/traced-blockchain';
 
 @Injectable()
-export class BlockchainService implements OnModuleInit {
+export class BlockchainService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BlockchainService.name);
   private provider!: ethers.JsonRpcProvider;
   private wallet!: ethers.Wallet;
@@ -34,6 +34,13 @@ export class BlockchainService implements OnModuleInit {
     this.provider = new ethers.JsonRpcProvider(request);
     this.wallet = new ethers.Wallet(privateKey, this.provider);
     this.logger.log(`Blockchain connected: ${rpcUrl}, wallet: ${this.wallet.address}`);
+  }
+
+  // Without this the provider keeps retrying network detection on a timer
+  // when the RPC node is unreachable, which holds the process open after
+  // shutdown (and keeps the e2e run from exiting).
+  onModuleDestroy(): void {
+    this.provider?.destroy();
   }
 
   getProvider(): ethers.JsonRpcProvider {

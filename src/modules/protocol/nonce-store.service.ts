@@ -1,4 +1,13 @@
-import { Injectable, Logger, ConflictException, OnModuleDestroy } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  Optional,
+} from '@nestjs/common';
+
+export const NONCE_STORE_OPTIONS = 'NONCE_STORE_OPTIONS';
 
 interface NonceEntry {
   seenAt: number;
@@ -16,7 +25,11 @@ export class NonceStoreService implements OnModuleDestroy {
   private readonly windowMs: number;
   private evictionTimer?: ReturnType<typeof setInterval>;
 
-  constructor(options: NonceStoreOptions = {}) {
+  // The options are optional for DI: without the explicit token Nest tries to
+  // resolve the parameter's design type (Object) and the application fails to
+  // start.
+  constructor(@Optional() @Inject(NONCE_STORE_OPTIONS) options: NonceStoreOptions | null = {}) {
+    options = options ?? {};
     this.windowMs = options.windowMs ?? 5 * 60 * 1000;
     const evictionIntervalMs = options.evictionIntervalMs ?? 60 * 1000;
     this.evictionTimer = setInterval(() => this.evictExpired(), evictionIntervalMs);

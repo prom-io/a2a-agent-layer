@@ -65,8 +65,8 @@ export class MeteringRollupJob implements OnModuleInit, OnModuleDestroy {
       .select('u.agentId', 'agentId')
       .addSelect('COUNT(*)', 'requestCount')
       .addSelect('COALESCE(SUM(u.tokensUsed), 0)', 'tokensUsed')
-      .addSelect('COALESCE(SUM(u.bytesIn::bigint), 0)', 'bytesIn')
-      .addSelect('COALESCE(SUM(u.bytesOut::bigint), 0)', 'bytesOut')
+      .addSelect('COALESCE(SUM(CAST(u.bytesIn AS bigint)), 0)', 'bytesIn')
+      .addSelect('COALESCE(SUM(CAST(u.bytesOut AS bigint)), 0)', 'bytesOut')
       .addSelect('COALESCE(SUM(u.cpuMs), 0)', 'cpuMs')
       .where('u.createdAt >= :hourBucket AND u.createdAt < :hourEnd', {
         hourBucket,

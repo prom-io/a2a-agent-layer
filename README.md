@@ -48,6 +48,13 @@ npm run test         # unit tests
 npm run test:e2e     # integration tests (supertest)
 ```
 
+The e2e suite needs PostgreSQL. CI runs it against a migrated schema; to do the same locally:
+
+```bash
+npm run build && NODE_ENV=test npm run migration:run
+NODE_ENV=test BLOCKCHAIN_PRIVATE_KEY=<key from .env.example> npm run test:e2e
+```
+
 ### Lint
 
 ```bash
