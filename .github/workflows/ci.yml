@@ -129,3 +129,43 @@ jobs:
 
       - name: E2E
         run: npm run test:e2e -- --ci --runInBand
+
+  contracts:
+    name: contract tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    env:
+      # Fixed seed: a fuzz failure must reproduce on re-run and locally instead
+      # of turning into a flaky job.
+      FOUNDRY_FUZZ_SEED: '0x70726f6d'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      # forge-std is listed in .gitmodules but the repository carries no
+      # gitlink for it, so a submodule checkout brings nothing. Fetch exactly
+      # the revision pinned in foundry.lock instead.
+      - name: Install forge-std at the pinned revision
+        run: |
+          rev="$(jq -r 'to_entries[0].value.tag.rev' foundry.lock)"
+          test -n "$rev" && test "$rev" != "null"
+          if [ ! -f lib/forge-std/src/Test.sol ]; then
+            rm -rf lib/forge-std
+            git init -q lib/forge-std
+            git -C lib/forge-std remote add origin https://github.com/foundry-rs/forge-std
+            git -C lib/forge-std fetch -q --depth 1 origin "$rev"
+            git -C lib/forge-std checkout -q FETCH_HEAD
+          fi
+          echo "forge-std at $(git -C lib/forge-std rev-parse HEAD)"
+
+      - name: Build
+        run: forge build --sizes
+
+      - name: Test
+        run: forge test -vvv
