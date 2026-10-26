@@ -14,6 +14,9 @@ permissions:
 
 env:
   NODE_VERSION: '20'
+  # Skips the audit request and the funding banner on every npm ci.
+  NPM_CONFIG_AUDIT: 'false'
+  NPM_CONFIG_FUND: 'false'
 
 jobs:
   lint:
@@ -25,6 +28,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install
         run: npm ci --ignore-scripts
@@ -43,6 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install
         run: npm ci --ignore-scripts
@@ -69,6 +74,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install
         run: npm ci --ignore-scripts
@@ -116,6 +122,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install
         run: npm ci --ignore-scripts
@@ -147,6 +154,26 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
+
+      # The pinned forge-std checkout only changes when foundry.lock does.
+      - name: Cache forge-std
+        uses: actions/cache@v4
+        with:
+          path: contracts/lib/forge-std
+          key: forge-std-${{ hashFiles('contracts/foundry.lock') }}
+
+      # Keyed on the sources themselves, not on a lockfile: forge rebuilds
+      # everything when any .sol changes, so a coarser key would never hit.
+      # restore-keys still gives an incremental build from the nearest cache.
+      - name: Cache forge build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            contracts/out
+            contracts/cache
+          key: forge-${{ runner.os }}-${{ hashFiles('contracts/src/**/*.sol', 'contracts/script/**/*.sol', 'contracts/test/**/*.sol', 'contracts/foundry.toml', 'contracts/foundry.lock') }}
+          restore-keys: |
+            forge-${{ runner.os }}-
 
       # forge-std is listed in .gitmodules but the repository carries no
       # gitlink for it, so a submodule checkout brings nothing. Fetch exactly
