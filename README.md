@@ -45,6 +45,7 @@ Logs, metrics (`GET /metrics`), tracing, the Grafana dashboard and the alert run
 
 ```bash
 npm run test         # unit tests
+npm run test:cov     # unit tests with coverage (CI fails below jest.coverageThreshold)
 npm run test:e2e     # integration tests (supertest)
 ```
 

@@ -79,8 +79,42 @@ jobs:
       - name: Install
         run: npm ci --ignore-scripts
 
-      - name: Unit tests
-        run: npm test -- --ci --runInBand
+      # Fails when coverage drops below the thresholds in package.json
+      # (jest.coverageThreshold). They are a ratchet, not a target: they sit
+      # just under the current numbers so coverage can only go up. Raise them
+      # when a suite lands, never lower them to make a red build green.
+      - name: Unit tests with coverage
+        run: npm run test:cov -- --ci --runInBand
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "No coverage summary was produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          {
+            echo "### Unit test coverage"
+            echo ""
+            echo "| Metric | Covered | Total | % | Threshold |"
+            echo "| --- | --- | --- | --- | --- |"
+            node -e '
+              const total = require("./coverage/coverage-summary.json").total;
+              const min = require("./package.json").jest.coverageThreshold.global;
+              for (const k of ["statements", "branches", "functions", "lines"]) {
+                console.log(`| ${k} | ${total[k].covered} | ${total[k].total} | ${total[k].pct}% | ${min[k]}% |`);
+              }
+            '
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
 
   e2e:
     name: e2e tests
