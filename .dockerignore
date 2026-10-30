@@ -1,0 +1,21 @@
+# Keep the build context small and keep secrets and local state out of it.
+.git
+.github
+node_modules
+dist
+coverage
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+# Not needed to build or run the service image.
+contracts
+docs
+grafana
+k6
+monitoring
+test
+scripts
+*.md
+docker-compose*.yml

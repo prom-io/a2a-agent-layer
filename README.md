@@ -87,6 +87,8 @@ docker build -f docker/Dockerfile -t a2a-agent-layer .
 docker run -p 3001:3001 --env-file .env a2a-agent-layer
 ```
 
+The image is multi-stage: production dependencies only, no npm in the runtime layer, runs as the unprivileged `node` user under `tini`, and has a `HEALTHCHECK` on `/health`. It sets `NODE_ENV=production`, so `JWT_SECRET` and `CSRF_SECRET` must be provided and pending migrations run on start. `docker/Dockerfile.dev` is the watch-mode image used by `docker-compose.dev.yml`.
+
 Or via the infra-compose stack (recommended):
 
 ```bash

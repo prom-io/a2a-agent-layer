@@ -62,6 +62,14 @@ describe('HealthService.detail', () => {
     expect(result.dependencies[0].status).toBe('up');
   });
 
+  it('falls back to the error code when the error has no message', async () => {
+    getBlockNumber.mockRejectedValue(Object.assign(new Error(''), { code: 'ECONNREFUSED' }));
+
+    const result = await service.detail();
+
+    expect(result.dependencies[1].error).toBe('ECONNREFUSED');
+  });
+
   it('is down when the database fails', async () => {
     query.mockRejectedValue(new Error('connection refused'));
 

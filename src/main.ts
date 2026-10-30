@@ -44,8 +44,9 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3001);
-  logger.log('Agent Layer listening on port 3001');
+  const port = Number.parseInt(process.env.PORT ?? '', 10) || 3001;
+  await app.listen(port);
+  logger.log(`Agent Layer listening on port ${port}`);
 }
 
 bootstrap();

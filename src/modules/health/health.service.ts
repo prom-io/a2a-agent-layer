@@ -130,7 +130,7 @@ export class HealthService {
       ]);
       return { name, status: 'up', latencyMs: elapsedMs(), critical, ...(details ? { details } : {}) };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = describeError(error);
       this.logger.warn(`Health probe "${name}" failed: ${message}`);
       return { name, status: 'down', latencyMs: elapsedMs(), critical, error: message };
     } finally {
@@ -152,6 +152,16 @@ export class HealthService {
       };
     }
   }
+}
+
+// A refused connection surfaces from Node as an AggregateError with an empty
+// message; fall back to the error code so the probe never reports "".
+function describeError(error: unknown): string {
+  const candidate = error as { message?: unknown; code?: unknown; name?: unknown } | null;
+  for (const value of [candidate?.message, candidate?.code, candidate?.name]) {
+    if (typeof value === 'string' && value.trim()) return value;
+  }
+  return 'Unknown error';
 }
 
 function checkTimeoutMs(): number {
