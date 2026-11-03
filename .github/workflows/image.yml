@@ -15,14 +15,18 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # Local-only tag of the image that is scanned before anything is pushed.
+  SCAN_TAG: agent-layer:scan
 
 jobs:
   build-and-push:
-    name: build and push
+    name: build, scan and push
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      # Lets the scan report be uploaded to the repository's security tab.
+      security-events: write
     steps:
       - uses: actions/checkout@v4
 
@@ -52,7 +56,60 @@ jobs:
             type=sha,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push
+      # Build once into the local daemon and scan that exact image. Scanning
+      # after the push would mean a vulnerable image is already pullable by the
+      # time anyone finds out.
+      - name: Build for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: runtime
+          push: false
+          load: true
+          tags: ${{ env.SCAN_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # First pass never fails: it only produces the full HIGH+CRITICAL report.
+      - name: Scan image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.SCAN_TAG }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
+
+      # Uploading to the security tab needs code scanning to be available for
+      # the repository (public, or GitHub Advanced Security). Where it is not,
+      # the upload answers "Resource not accessible by integration"; that must
+      # not fail the image build, so this step is best-effort. The gate below
+      # does not depend on it.
+      - name: Upload scan results
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image
+
+      # Second pass is the gate: a fixable CRITICAL finding fails the job
+      # before the push step is reached. Unfixed findings are ignored because
+      # no rebuild can clear them.
+      - name: Fail on critical findings
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.SCAN_TAG }}
+          format: table
+          severity: 'CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
+
+      # Rebuilds from the layer cache written above, so this pushes the image
+      # that was just scanned.
+      - name: Push
         id: push
         uses: docker/build-push-action@v6
         with:
@@ -63,7 +120,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
           provenance: false
 
       - name: Summarize
