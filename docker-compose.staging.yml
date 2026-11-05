@@ -1,0 +1,84 @@
+# Staging stack for the PROM Agent Layer: the published service image and its
+# database. Nothing is built here; the image comes from GHCR.
+#
+#   cp .env.staging.example .env.staging   # fill in the secrets
+#   IMAGE_TAG=sha-<full commit sha> docker compose --env-file .env.staging -f docker-compose.staging.yml up -d
+#
+# IMAGE_TAG is required and must be an immutable tag produced by the image
+# workflow (sha-<commit> or a release version), never `latest`: what runs on
+# staging has to be traceable to a commit and re-deployable for a rollback.
+# The staging-deploy workflow sets it automatically.
+
+name: a2a-agent-layer-staging
+
+services:
+  agent-layer:
+    image: ${IMAGE_REPOSITORY:-ghcr.io/prom-io/a2a-agent-layer}:${IMAGE_TAG:?set IMAGE_TAG to an immutable image tag, e.g. sha-<commit>}
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      # production mode: the schema comes from migrations (run on start) and
+      # the service refuses to boot on development secrets.
+      NODE_ENV: production
+      PORT: '3001'
+      DATABASE_HOST: postgres
+      DATABASE_PORT: '5432'
+      DATABASE_USER: agent_layer
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      DATABASE_NAME: agent_db
+      LOG_PRETTY: 'false'
+    ports:
+      # Loopback only: the reverse proxy on the host terminates TLS, and
+      # /metrics (unauthenticated) must not be reachable from outside.
+      - '127.0.0.1:3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # The image already defines a HEALTHCHECK on /health; repeated here so the
+    # timings are visible and tunable per environment.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get({host:'127.0.0.1',port:3001,path:'/health',timeout:4000},r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+
+  postgres:
+    image: postgres:16.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agent_db
+      POSTGRES_USER: agent_layer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U agent_layer -d agent_db']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '5'
+
+volumes:
+  pgdata:
