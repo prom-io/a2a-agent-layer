@@ -1,0 +1,152 @@
+name: staging-deploy
+
+# Deploys main to staging once its image has been built, scanned and pushed.
+# Chained to the image workflow instead of the push itself: a deploy that
+# starts on push races the registry and pulls a tag that does not exist yet.
+on:
+  workflow_run:
+    workflows: [image]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Immutable image tag to deploy (sha-<full commit sha> or a release version). Use this to roll back.
+        required: true
+        type: string
+
+# One deploy at a time; a newer commit replaces a deploy that is still queued.
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: deploy to staging
+    runs-on: ubuntu-latest
+    # Skip when the image workflow failed (for example on the scan gate):
+    # there is nothing new to deploy.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    environment: staging
+    env:
+      SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+      SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+      SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+      DEPLOY_PATH: ${{ vars.STAGING_DEPLOY_PATH || '/opt/a2a-agent-layer' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Resolve image reference
+        id: image
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            tag="${{ inputs.image_tag }}"
+          else
+            tag="sha-${{ github.event.workflow_run.head_sha }}"
+          fi
+          case "$tag" in
+            latest|main|'') echo "::error::refusing to deploy mutable tag '$tag'"; exit 1 ;;
+          esac
+          repo="ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+          echo "Deploying $repo:$tag" >> "$GITHUB_STEP_SUMMARY"
+
+      # Catches a broken compose file before anything touches the host.
+      - name: Validate compose file
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          IMAGE_REPOSITORY: ${{ steps.image.outputs.repo }}
+          POSTGRES_PASSWORD: validation-only
+        run: |
+          cp .env.staging.example .env.staging
+          docker compose -f docker-compose.staging.yml config --quiet
+          rm .env.staging
+
+      # The workflow is committed before the staging host exists. Until the
+      # secrets are set the job reports that and ends green instead of failing
+      # every push to main.
+      - name: Check staging host configuration
+        id: target
+        run: |
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_KEY" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Staging host is not configured (STAGING_SSH_HOST, STAGING_SSH_USER, STAGING_SSH_KEY); deploy skipped."
+            echo "Deploy skipped: staging host secrets are not set." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure SSH
+        if: steps.target.outputs.configured == 'true'
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_staging
+          chmod 600 ~/.ssh/id_staging
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # Trust on first use. Set STAGING_SSH_KNOWN_HOSTS to pin the host key.
+            ssh-keyscan -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          {
+            echo "Host staging"
+            echo "  HostName $SSH_HOST"
+            echo "  User $SSH_USER"
+            echo "  IdentityFile ~/.ssh/id_staging"
+            echo "  IdentitiesOnly yes"
+          } > ~/.ssh/config
+
+      - name: Upload compose file
+        if: steps.target.outputs.configured == 'true'
+        run: |
+          ssh staging "mkdir -p '$DEPLOY_PATH'"
+          scp docker-compose.staging.yml "staging:$DEPLOY_PATH/docker-compose.staging.yml"
+
+      # .env.staging lives on the host and is never transferred from here. The
+      # job token is only used to pull the image; it expires with the job.
+      - name: Pull and restart
+        if: steps.target.outputs.configured == 'true'
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+          IMAGE_REPOSITORY: ${{ steps.image.outputs.repo }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh staging "IMAGE_TAG='$IMAGE_TAG' IMAGE_REPOSITORY='$IMAGE_REPOSITORY' GHCR_USER='${{ github.actor }}' GHCR_TOKEN='$GHCR_TOKEN' DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          test -f .env.staging || { echo "missing $DEPLOY_PATH/.env.staging on the host" >&2; exit 1; }
+          compose() { docker compose --env-file .env.staging -f docker-compose.staging.yml "$@"; }
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          export IMAGE_TAG IMAGE_REPOSITORY
+          compose pull agent-layer
+          # --wait blocks until the health checks pass and fails otherwise.
+          if ! compose up -d --wait --wait-timeout 180; then
+            compose ps
+            compose logs --tail 100 agent-layer
+            exit 1
+          fi
+          # Remember what is running, for the next rollback.
+          [ -f .deployed-tag ] && cp .deployed-tag .previous-tag
+          echo "$IMAGE_TAG" > .deployed-tag
+          docker logout ghcr.io
+          docker image prune -f >/dev/null
+          REMOTE
+
+      - name: Smoke check
+        if: steps.target.outputs.configured == 'true'
+        run: |
+          ssh staging "curl -fsS --retry 5 --retry-delay 3 --retry-connrefused http://127.0.0.1:3001/health" | tee health.json
+          grep -q '"status":"ok"' health.json
+          echo "Deployed ${{ steps.image.outputs.tag }}; /health is ok." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove key material
+        if: always()
+        run: rm -f ~/.ssh/id_staging
