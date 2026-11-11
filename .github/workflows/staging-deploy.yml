@@ -39,7 +39,7 @@ jobs:
       SSH_KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
       DEPLOY_PATH: ${{ vars.STAGING_DEPLOY_PATH || '/opt/a2a-agent-layer' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
