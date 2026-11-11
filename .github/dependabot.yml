@@ -1,0 +1,70 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    # Conventional prefix so the update commits read like the rest of the
+    # history: "chore(deps): bump pino from 9.14.0 to 9.15.0".
+    commit-message:
+      prefix: chore
+      include: scope
+    labels:
+      - dependencies
+    # Packages that are released together and only work at matching versions
+    # arrive as one pull request instead of several that fail CI one by one.
+    groups:
+      nestjs:
+        patterns:
+          - '@nestjs/*'
+      opentelemetry:
+        patterns:
+          - '@opentelemetry/*'
+      typescript-eslint:
+        patterns:
+          - '@typescript-eslint/*'
+      commitlint:
+        patterns:
+          - '@commitlint/*'
+      test-tooling:
+        patterns:
+          - jest
+          - ts-jest
+          - '@types/jest'
+          - supertest
+          - '@types/supertest'
+    ignore:
+      # ESLint 9 drops .eslintrc.json; moving to flat config is a deliberate
+      # change, not a dependency bump.
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@typescript-eslint/*'
+        update-types: ['version-update:semver-major']
+      # The type definitions follow the Node major the service runs on
+      # (node:20 in docker/Dockerfile and in CI).
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: ci
+      include: scope
+    labels:
+      - dependencies
+      - ci
+    groups:
+      docker-actions:
+        patterns:
+          - 'docker/*'
