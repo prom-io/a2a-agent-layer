@@ -60,7 +60,10 @@ NODE_ENV=test BLOCKCHAIN_PRIVATE_KEY=<key from .env.example> npm run test:e2e
 
 ```bash
 npm run lint
+npm run lint:commits   # commit messages on this branch against origin/main
 ```
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org) (`feat:`, `fix:`, `chore:`, `ci:`, `docs:`, `test:`, `perf:`, `refactor:`; an optional scope such as `fix(ci):` is allowed) and are checked on every pull request by the `commitlint` workflow using `.commitlintrc.json`.
 
 ## Smart Contracts
 

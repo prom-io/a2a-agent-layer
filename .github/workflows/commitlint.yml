@@ -1,0 +1,47 @@
+name: commitlint
+
+on:
+  pull_request:
+
+concurrency:
+  group: commitlint-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: commit messages
+    runs-on: ubuntu-latest
+    # Dependabot writes its own messages (already prefixed through
+    # .github/dependabot.yml) and nobody can reword them; checking them only
+    # blocks dependency updates over formatting.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    steps:
+      # Full history: the range below needs both ends of the pull request.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # commitlint resolves the config it extends relative to the repository,
+      # so both the CLI and @commitlint/config-conventional are devDependencies
+      # and are installed from the lock file. Fetching only the CLI through npx
+      # fails with "Cannot find module @commitlint/config-conventional".
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      # Every commit of the pull request, not just the title: commits are
+      # cherry-picked onto main one by one, so each subject ends up in history.
+      - name: Lint commit messages
+        run: >-
+          npx --no-install commitlint
+          --config .commitlintrc.json
+          --from "${{ github.event.pull_request.base.sha }}"
+          --to "${{ github.event.pull_request.head.sha }}"
+          --verbose
