@@ -49,6 +49,9 @@ npm run test:cov     # unit tests with coverage (CI fails below jest.coverageThr
 npm run test:e2e     # integration tests (supertest)
 ```
 
+The pipelines that run these checks, build the image and deploy staging, their
+secrets and the rollback procedure are described in [docs/CI-CD.md](docs/CI-CD.md).
+
 The e2e suite needs PostgreSQL. CI runs it against a migrated schema; to do the same locally:
 
 ```bash
