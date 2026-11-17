@@ -22,7 +22,7 @@ describe('catalog listing query count', () => {
     tariffs = [];
 
     qb = {};
-    for (const method of ['orderBy', 'andWhere', 'take', 'skip']) {
+    for (const method of ['orderBy', 'addOrderBy', 'addSelect', 'andWhere', 'take', 'skip']) {
       qb[method] = jest.fn().mockReturnValue(qb);
     }
     qb.getMany = jest.fn(async () => {
@@ -91,11 +91,26 @@ describe('catalog listing query count', () => {
     await catalog.findAll({ agentId: 'agent-1', q: ' 50%_off ', page: 3, limit: 20 });
 
     expect(qb.andWhere).toHaveBeenCalledWith('s.agentId = :agentId', { agentId: 'agent-1' });
-    expect(qb.andWhere).toHaveBeenCalledWith(expect.stringContaining('ILIKE'), {
-      q: '%50\\%\\_off%',
+    expect(qb.andWhere).toHaveBeenCalledWith(expect.stringContaining('@@ websearch_to_tsquery'), {
+      searchQuery: '50%_off',
+      searchLike: '%50\\%\\_off%',
     });
     expect(qb.take).toHaveBeenCalledWith(20);
     expect(qb.skip).toHaveBeenCalledWith(40);
+  });
+
+  it('orders by recency and skips the search clause without a usable query', async () => {
+    await catalog.findAll({ q: '  --  ' });
+
+    expect(qb.andWhere).not.toHaveBeenCalled();
+    expect(qb.addSelect).not.toHaveBeenCalled();
+    expect(qb.orderBy).toHaveBeenCalledWith('s.createdAt', 'DESC');
+  });
+
+  it('ranks by relevance when searching', async () => {
+    await catalog.findAll({ q: 'translate' });
+
+    expect(qb.orderBy).toHaveBeenLastCalledWith('search_rank', 'DESC');
   });
 });
 

@@ -5,6 +5,9 @@ import { Service } from './entities/service.entity';
 import { Tariff } from '../pricing/entities/tariff.entity';
 import { PricingService } from '../pricing/pricing.service';
 import { ListServicesDto } from './dto/list-services.dto';
+import { applyFullTextSearch, normalizeSearchQuery } from './catalog-search';
+
+export { escapeLike } from './catalog-search';
 
 export type ServiceWithTariffs = Service & { tariffs: Tariff[] };
 
@@ -28,6 +31,10 @@ export class CatalogService {
    * service with a request of its own: one query for the page plus one per
    * row. With `include=tariffs` the prices of the whole page come from a
    * single `IN (...)` query, so a listing costs two queries whatever its size.
+   *
+   * With `q` the listing becomes a full-text search over name and description
+   * (Postgres tsvector, GIN-indexed) ordered by relevance; without it services
+   * come newest first.
    */
   async findAll(query: ListServicesDto = {}): Promise<Service[] | ServiceWithTariffs[]> {
     const qb = this.serviceRepo.createQueryBuilder('s').orderBy('s.createdAt', 'DESC');
@@ -35,10 +42,9 @@ export class CatalogService {
     if (query.agentId) {
       qb.andWhere('s.agentId = :agentId', { agentId: query.agentId });
     }
-    if (query.q?.trim()) {
-      qb.andWhere('(s.name ILIKE :q OR s.description ILIKE :q)', {
-        q: `%${escapeLike(query.q.trim())}%`,
-      });
+    const search = normalizeSearchQuery(query.q);
+    if (search) {
+      applyFullTextSearch(qb, 's', search);
     }
     if (query.limit) {
       qb.take(query.limit).skip(((query.page ?? 1) - 1) * query.limit);
@@ -56,9 +62,4 @@ export class CatalogService {
   async findOne(id: string): Promise<Service | null> {
     return this.serviceRepo.findOneBy({ id });
   }
-}
-
-/** Escapes LIKE wildcards so a search for `50%` does not match everything. */
-export function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }

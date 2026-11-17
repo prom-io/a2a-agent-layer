@@ -5,10 +5,15 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Agent } from '../../identity/entities/agent.entity';
+import { SERVICE_SEARCH_VECTOR_SQL } from '../catalog-search';
 
 @Entity('services')
+// GIN index from the AddServiceSearchVector migration. synchronize: false
+// because TypeORM can only create btree indexes; the migration owns it.
+@Index('IDX_services_search_vector', { synchronize: false })
 export class Service {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -37,4 +42,20 @@ export class Service {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  /**
+   * Weighted full-text document over name and description, maintained by
+   * Postgres itself (generated column), so it can never drift from the text.
+   * Never selected: it is only used for matching and ranking.
+   */
+  @Column({
+    type: 'tsvector',
+    select: false,
+    insert: false,
+    update: false,
+    nullable: true,
+    generatedType: 'STORED',
+    asExpression: SERVICE_SEARCH_VECTOR_SQL,
+  })
+  searchVector?: string;
 }

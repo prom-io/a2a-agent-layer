@@ -10,7 +10,11 @@ export class ListServicesDto {
   @IsUUID()
   agentId?: string;
 
-  @ApiPropertyOptional({ description: 'Case-insensitive match on service name or description' })
+  @ApiPropertyOptional({
+    description:
+      'Full-text search over name and description, ordered by relevance. Accepts web search ' +
+      'syntax: "quoted phrase", or, -excluded. Falls back to a substring match on the name.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
