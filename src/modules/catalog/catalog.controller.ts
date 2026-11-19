@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { CatalogService, ServiceWithTariffs } from './catalog.service';
 import { ListServicesDto } from './dto/list-services.dto';
+import { CreateServiceDto } from './dto/create-service.dto';
 import { Service } from './entities/service.entity';
 
 @ApiTags('services')
@@ -13,14 +14,17 @@ export class CatalogController {
   @ApiOperation({ summary: 'Register a new service in the catalog' })
   @ApiResponse({ status: 201, description: 'Service created' })
   @ApiResponse({ status: 400, description: 'Invalid service payload' })
-  async create(@Body() body: Partial<Service>): Promise<Service> {
+  async create(@Body() body: CreateServiceDto): Promise<Service> {
     return this.catalogService.create(body);
   }
 
   @Get()
   @ApiOperation({ summary: 'List or search services, optionally with their tariffs' })
   @ApiResponse({ status: 200, description: 'List of services' })
-  @ApiResponse({ status: 400, description: 'Invalid filter or pagination parameter' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid filter, inverted price range or pagination parameter',
+  })
   async findAll(@Query() query: ListServicesDto): Promise<Service[] | ServiceWithTariffs[]> {
     return this.catalogService.findAll(query);
   }

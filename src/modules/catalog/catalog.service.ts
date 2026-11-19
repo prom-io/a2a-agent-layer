@@ -5,7 +5,9 @@ import { Service } from './entities/service.entity';
 import { Tariff } from '../pricing/entities/tariff.entity';
 import { PricingService } from '../pricing/pricing.service';
 import { ListServicesDto } from './dto/list-services.dto';
+import { CreateServiceDto } from './dto/create-service.dto';
 import { applyFullTextSearch, normalizeSearchQuery } from './catalog-search';
+import { applyCatalogFilters, normalizeCapabilities } from './catalog-filters';
 
 export { escapeLike } from './catalog-search';
 
@@ -19,8 +21,12 @@ export class CatalogService {
     private readonly pricingService: PricingService,
   ) {}
 
-  async create(data: Partial<Service>): Promise<Service> {
-    const service = this.serviceRepo.create(data);
+  async create(data: CreateServiceDto): Promise<Service> {
+    const service = this.serviceRepo.create({
+      ...data,
+      capabilities: normalizeCapabilities(data.capabilities),
+      available: data.available ?? true,
+    });
     return this.serviceRepo.save(service);
   }
 
@@ -42,6 +48,14 @@ export class CatalogService {
     if (query.agentId) {
       qb.andWhere('s.agentId = :agentId', { agentId: query.agentId });
     }
+    applyCatalogFilters(qb, 's', {
+      capabilities: query.capability,
+      capabilityMatch: query.capabilityMatch,
+      minPrice: query.minPrice,
+      maxPrice: query.maxPrice,
+      currency: query.currency,
+      available: query.available,
+    });
     const search = normalizeSearchQuery(query.q);
     if (search) {
       applyFullTextSearch(qb, 's', search);

@@ -151,3 +151,40 @@ describe('escapeLike', () => {
     expect(escapeLike('translate')).toBe('translate');
   });
 });
+
+describe('CatalogService.create', () => {
+  it('stores normalized capabilities and lists the service by default', async () => {
+    const create = jest.fn((data: Partial<Service>) => data as Service);
+    const save = jest.fn(async (entity: Service) => entity);
+    const catalog = new CatalogService(
+      { create, save } as unknown as Repository<Service>,
+      {} as PricingService,
+    );
+
+    const saved = await catalog.create({
+      agentId: 'agent-1',
+      name: 'OCR',
+      description: 'Reads scans',
+      capabilities: ['OCR', 'ocr', 'pdf'],
+    });
+
+    expect(saved.capabilities).toEqual(['ocr', 'pdf']);
+    expect(saved.available).toBe(true);
+  });
+
+  it('passes the filters to the query', async () => {
+    const qb: Record<string, jest.Mock> = {};
+    for (const method of ['orderBy', 'andWhere', 'getMany']) {
+      qb[method] = jest.fn().mockReturnValue(qb);
+    }
+    qb.getMany.mockResolvedValue([]);
+    const catalog = new CatalogService(
+      { createQueryBuilder: () => qb } as unknown as Repository<Service>,
+      {} as PricingService,
+    );
+
+    await catalog.findAll({ capability: ['ocr'], maxPrice: '1', available: true });
+
+    expect(qb.andWhere).toHaveBeenCalledTimes(3);
+  });
+});

@@ -14,6 +14,7 @@ import { SERVICE_SEARCH_VECTOR_SQL } from '../catalog-search';
 // GIN index from the AddServiceSearchVector migration. synchronize: false
 // because TypeORM can only create btree indexes; the migration owns it.
 @Index('IDX_services_search_vector', { synchronize: false })
+@Index('IDX_services_capabilities', { synchronize: false })
 export class Service {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -39,6 +40,14 @@ export class Service {
 
   @Column({ type: 'jsonb', nullable: true })
   slaHints!: Record<string, unknown>;
+
+  /** Normalized capability tags (see normalizeCapabilities), GIN-indexed. */
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  capabilities!: string[];
+
+  /** Listing switch of the provider; false hides it from available=true searches. */
+  @Column({ default: true })
+  available!: boolean;
 
   @CreateDateColumn()
   createdAt!: Date;
