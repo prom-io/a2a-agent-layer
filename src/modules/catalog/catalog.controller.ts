@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { CatalogService, ServiceWithTariffs } from './catalog.service';
 import { ListServicesDto } from './dto/list-services.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { CompareServicesDto } from './dto/compare-services.dto';
+import { ServiceComparison } from './catalog-compare';
 import { Service } from './entities/service.entity';
 
 @ApiTags('services')
@@ -27,6 +29,18 @@ export class CatalogController {
   })
   async findAll(@Query() query: ListServicesDto): Promise<Service[] | ServiceWithTariffs[]> {
     return this.catalogService.findAll(query);
+  }
+
+  // Declared before ':id' so "compare" is not taken for a service id.
+  @Get('compare')
+  @ApiOperation({
+    summary: 'Compare services side by side on cheapest price per tariff type and SLA fields',
+  })
+  @ApiResponse({ status: 200, description: 'Per-service figures plus the leaders of each field' })
+  @ApiResponse({ status: 400, description: 'Fewer than two or more than ten distinct ids' })
+  @ApiResponse({ status: 404, description: 'None of the services exist' })
+  async compare(@Query() query: CompareServicesDto): Promise<ServiceComparison> {
+    return this.catalogService.compare(query.ids);
   }
 
   @Get(':id')
