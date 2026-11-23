@@ -86,7 +86,7 @@ describe('applyFullTextSearch', () => {
     search(qb, 'svc', 'ocr');
 
     expect(qb.addSelect).toHaveBeenCalledWith(
-      "ts_rank_cd(svc.searchVector, websearch_to_tsquery('english', :searchQuery))",
+      "ts_rank(svc.searchVector, websearch_to_tsquery('english', :searchQuery))",
       SEARCH_RANK_ALIAS,
     );
     expect(qb.orderBy).toHaveBeenCalledWith(SEARCH_RANK_ALIAS, 'DESC');

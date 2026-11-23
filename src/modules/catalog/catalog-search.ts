@@ -57,7 +57,7 @@ export function applyFullTextSearch<T extends ObjectLiteral>(
 ): SelectQueryBuilder<T> {
   const tsquery = `websearch_to_tsquery('${SEARCH_CONFIG}', :searchQuery)`;
   return qb
-    .addSelect(`ts_rank_cd(${alias}.searchVector, ${tsquery})`, SEARCH_RANK_ALIAS)
+    .addSelect(`ts_rank(${alias}.searchVector, ${tsquery})`, SEARCH_RANK_ALIAS)
     .andWhere(`(${alias}.searchVector @@ ${tsquery} OR ${alias}.name ILIKE :searchLike)`, {
       searchQuery: query,
       searchLike: `%${escapeLike(query)}%`,
