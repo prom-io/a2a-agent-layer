@@ -15,6 +15,7 @@ import { ApiKeyGuard } from './common/auth/api-key.guard';
 import { RolesGuard } from './common/auth/roles.guard';
 import { databaseConfig } from './config/database.config';
 import { blockchainConfig } from './config/blockchain.config';
+import { reputationConfig } from './config/reputation.config';
 import { BlockchainModule } from './common/blockchain/blockchain.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
@@ -23,13 +24,14 @@ import { MeteringModule } from './modules/metering/metering.module';
 import { ProtocolModule } from './modules/protocol/protocol.module';
 import { PolicyModule } from './modules/policy/policy.module';
 import { HealthModule } from './modules/health/health.module';
+import { ReputationModule } from './modules/reputation/reputation.module';
 
 @Module({
   imports: [
     AppMiddlewareModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [blockchainConfig, securityConfig],
+      load: [blockchainConfig, securityConfig, reputationConfig],
     }),
     TypeOrmModule.forRootAsync(databaseConfig),
     ThrottlerModule.forRootAsync({
@@ -49,6 +51,7 @@ import { HealthModule } from './modules/health/health.module';
     ProtocolModule,
     PolicyModule,
     HealthModule,
+    ReputationModule,
   ],
   providers: [
     {
