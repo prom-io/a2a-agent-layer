@@ -16,6 +16,7 @@ import { RolesGuard } from './common/auth/roles.guard';
 import { databaseConfig } from './config/database.config';
 import { blockchainConfig } from './config/blockchain.config';
 import { reputationConfig } from './config/reputation.config';
+import { catalogConfig } from './config/catalog.config';
 import { BlockchainModule } from './common/blockchain/blockchain.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
@@ -31,7 +32,7 @@ import { ReputationModule } from './modules/reputation/reputation.module';
     AppMiddlewareModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [blockchainConfig, securityConfig, reputationConfig],
+      load: [blockchainConfig, securityConfig, reputationConfig, catalogConfig],
     }),
     TypeOrmModule.forRootAsync(databaseConfig),
     ThrottlerModule.forRootAsync({

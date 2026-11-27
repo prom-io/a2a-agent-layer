@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Service } from './entities/service.entity';
@@ -9,6 +10,13 @@ import { CreateServiceDto } from './dto/create-service.dto';
 import { applyFullTextSearch, normalizeSearchQuery } from './catalog-search';
 import { applyCatalogFilters, normalizeCapabilities } from './catalog-filters';
 import { compareServices, ServiceComparison } from './catalog-compare';
+import {
+  applyRanking,
+  DEFAULT_NEUTRAL_REPUTATION,
+  DEFAULT_RANK_WEIGHTS,
+  rankingFromRaw,
+  RankWeights,
+} from './catalog-ranking';
 
 export { escapeLike } from './catalog-search';
 
@@ -16,11 +24,19 @@ export type ServiceWithTariffs = Service & { tariffs: Tariff[] };
 
 @Injectable()
 export class CatalogService {
+  private readonly rankWeights: RankWeights;
+  private readonly neutralReputation: number;
+
   constructor(
     @InjectRepository(Service)
     private readonly serviceRepo: Repository<Service>,
     private readonly pricingService: PricingService,
-  ) {}
+    @Optional() config?: ConfigService,
+  ) {
+    this.rankWeights = config?.get<RankWeights>('catalog.rankWeights') ?? DEFAULT_RANK_WEIGHTS;
+    this.neutralReputation =
+      config?.get<number>('catalog.neutralReputation') ?? DEFAULT_NEUTRAL_REPUTATION;
+  }
 
   async create(data: CreateServiceDto): Promise<Service> {
     const service = this.serviceRepo.create({
@@ -41,7 +57,9 @@ export class CatalogService {
    *
    * With `q` the listing becomes a full-text search over name and description
    * (Postgres tsvector, GIN-indexed) ordered by relevance; without it services
-   * come newest first.
+   * come newest first. `sort=reputation|price|best` orders by the agent's
+   * synced reputation, the cheapest tariff, or a weighted mix of both with
+   * relevance, and returns those figures with each row under `ranking`.
    */
   async findAll(query: ListServicesDto = {}): Promise<Service[] | ServiceWithTariffs[]> {
     const qb = this.serviceRepo.createQueryBuilder('s').orderBy('s.createdAt', 'DESC');
@@ -61,11 +79,29 @@ export class CatalogService {
     if (search) {
       applyFullTextSearch(qb, 's', search);
     }
+    const ranked = applyRanking(qb, 's', query.sort ?? (search ? 'relevance' : 'newest'), {
+      hasSearch: search !== null,
+      currency: query.currency,
+      weights: this.rankWeights,
+      neutralReputation: this.neutralReputation,
+    });
     if (query.limit) {
       qb.take(query.limit).skip(((query.page ?? 1) - 1) * query.limit);
     }
 
-    const services = await qb.getMany();
+    let services: Service[];
+    if (ranked) {
+      // The ranking figures are computed columns; read them from the raw rows.
+      const { entities, raw } = await qb.getRawAndEntities();
+      const figures = new Map(
+        raw.map((row: Record<string, unknown>) => [String(row.s_id), rankingFromRaw(row)]),
+      );
+      services = entities.map((service) =>
+        Object.assign(service, { ranking: figures.get(service.id) ?? rankingFromRaw({}) }),
+      );
+    } else {
+      services = await qb.getMany();
+    }
     if (query.include !== 'tariffs') return services;
 
     const tariffs = await this.pricingService.findByServiceIds(services.map((s) => s.id));

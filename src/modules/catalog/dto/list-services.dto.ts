@@ -16,6 +16,7 @@ import {
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDecimalString } from '../../../common/validators/field.validators';
 import { CAPABILITY_PATTERN, CapabilityMatch, MAX_CAPABILITY_FILTERS } from '../catalog-filters';
+import { CATALOG_SORTS, CatalogSort } from '../catalog-ranking';
 
 export const MAX_CATALOG_PAGE_SIZE = 200;
 
@@ -96,6 +97,17 @@ export class ListServicesDto {
   @Transform(toBoolean)
   @IsBoolean()
   available?: boolean;
+
+  @ApiPropertyOptional({
+    enum: CATALOG_SORTS,
+    description:
+      'relevance (default with q), newest (default without), reputation of the agent, ' +
+      'cheapest price, or best: weighted reputation, price and relevance. The last three ' +
+      'return the figures under `ranking`.',
+  })
+  @IsOptional()
+  @IsIn(CATALOG_SORTS)
+  sort?: CatalogSort;
 
   @ApiPropertyOptional({
     enum: ['tariffs'],

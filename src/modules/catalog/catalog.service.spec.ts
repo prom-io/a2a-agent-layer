@@ -174,7 +174,7 @@ describe('CatalogService.create', () => {
 
   it('passes the filters to the query', async () => {
     const qb: Record<string, jest.Mock> = {};
-    for (const method of ['orderBy', 'andWhere', 'getMany']) {
+    for (const method of ['orderBy', 'addOrderBy', 'andWhere', 'getMany']) {
       qb[method] = jest.fn().mockReturnValue(qb);
     }
     qb.getMany.mockResolvedValue([]);
